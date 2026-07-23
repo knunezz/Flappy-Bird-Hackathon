@@ -337,8 +337,16 @@
 
 
 
-from cmu_graphics import * 
+
+from cmu_graphics import *
 import random
+import requests
+from pywebio.input import *
+from pywebio.output import *
+from pywebio.session import *
+import os
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 class Bird:
     def __init__(self, birdX, birdY, birdWidth, birdHeight): 
@@ -438,10 +446,9 @@ class Game:
             w = pipe.pipeWidth
             gap = pipe.pipeGap
 
-            if (birdRight > cx and birdLeft < cx + w and birdBottom > 0 and birdTop < h): 
-                return True
-            if (birdRight > cx and birdLeft < cx + w and birdBottom > h + gap):
-                return True
+            if (birdRight > cx and birdLeft < cx + w):
+                if birdTop < h or birdBottom > h + gap:
+                    return True
         return False
 
     def update(self): 
@@ -463,9 +470,21 @@ class Game:
             if self.collisionCooldown == 0:
                 self.lives -= 1
                 self.collisionCooldown = 20
+                # bounce backwards
+                self.bird.birdX -= 20
+                self.bird.dy = -8
+        # Determine player's playing area
+        if self.multiplayer:
+            topBoundary = 0
+            bottomBoundary = self.height // 2
+        else:
+            topBoundary = 0
+            bottomBoundary = self.height
 
-        if ((self.bird.birdY + self.bird.birdHeight >= self.height // 2) or 
-            (self.bird.birdY - self.bird.birdHeight <= 0)):
+        birdTop = self.bird.birdY - self.bird.birdHeight / 2
+        birdBottom = self.bird.birdY + self.bird.birdHeight / 2
+
+        if birdTop <= topBoundary or birdBottom >= bottomBoundary:
             if self.collisionCooldown == 0:
                 self.lives -= 1
                 self.collisionCooldown = 20
@@ -473,6 +492,7 @@ class Game:
         if self.lives <= 0:
             self.gameOver = True
             self.paused = True
+            self.bird.dy = 0
 
         for pipe in self.pipes:
             pipeMid = pipe.pipeX + pipe.pipeWidth / 2
@@ -492,7 +512,13 @@ class Game:
                     pipe.pipeX = lastPipe.pipeX + 300
                     pipe.pipeHeight = random.randint(50, max(100, self.height // 2 - self.pipeGap - 100))
                     pipe.scored = False
-
+                    
+                if self.isCollision(self.bird2, self.pipes2):
+                    if self.collisionCooldown == 0:
+                        self.lives -= 1
+                        self.collisionCooldown = 20
+                        self.bird2.birdX -= 20
+                        self.bird2.dy = -8
 def onAppStart(app):
     app.game = Game()
     app.stepsPerSecond = 20
